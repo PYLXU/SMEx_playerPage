@@ -1,0 +1,11 @@
+{
+  "packageId": "playerMode",
+  "extName": "播放页面",
+  "uiName": "播放页面",
+  "version": "0.0.1",
+  "entries": [
+    "function.js",
+    "ui_css.js"
+  ]
+}
+  
