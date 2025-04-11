@@ -330,6 +330,7 @@ function loadStyles() {
 SettingsPage.data.push(
     { type: "title", text: "[第三方扩展] 播放页面" },
     { type: "boolean", text: "启用修改的播放页面", description: "开启后将更改播放页面使其更加美观", configItem: "ext.playerPage.isEffect" },
+    { type: "boolean", text: "播放页自动隐藏播放控件", description: "开启后在播放页超过3秒无操作则隐藏部分底栏", configItem: "ext.playerPage.autoHideBottom" },
 );
 config.listenChange("ext.playerPage.isEffect", () => loadStyles());
 config.listenChange("darkPlayer", () => {
@@ -343,7 +344,7 @@ loadStyles();
 
 config.listenChange("ext.darkMode.isEffect", (value) => {
     if (value) {
-        
+
     }
 });
 
@@ -360,7 +361,7 @@ function onInactivity() {
     document.querySelector('.bottom > .center > .play').style.visibility = 'visible';
     document.querySelector('.bottom > .center > #ExPlayerMenuBtn').style.visibility = 'visible';
     document.querySelector('.bottom').style.backdropFilter = 'blur(0px)';
-    document.querySelector('#ExPlayerPlayTime').style.right =  '30px';
+    document.querySelector('#ExPlayerPlayTime').style.right = '30px';
     document.hasInactivity = true;
 }
 function onActivity() {
@@ -370,7 +371,7 @@ function onActivity() {
     document.querySelector('.bottom > .center').style.visibility = 'visible';
     document.querySelector('.bottom').style.backdropFilter = 'blur(70px)';
     document.querySelector('.bottom > .center > #ExPlayerMenuBtn').style.visibility = 'visible';
-    document.querySelector('#ExPlayerPlayTime').style.right =  '190px';
+    document.querySelector('#ExPlayerPlayTime').style.right = '190px';
 }
 function resetTimer() {
     clearTimeout(inactivityTimer);
@@ -384,6 +385,10 @@ function setupActivityListeners() {
     document.addEventListener('wheel', handleUserActivity); // 滚轮事件
 }
 function handleUserActivity() {
+    if (ext.playerPage.autoHideBottom) {
+        onActivity();
+        return;
+    }
     if (!document.body.classList.contains('playerShown')) {
         document.hasInactivity = true;
         onActivity();
