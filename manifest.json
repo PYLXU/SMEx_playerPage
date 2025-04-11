@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "entries": [
     "function.js",
-    "ui_css.js"
+    "basic.js"
   ]
 }
   

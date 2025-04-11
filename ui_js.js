@@ -1,4 +1,0 @@
-var scripts = `
-
-        `;
-includeScriptElement(scripts);
