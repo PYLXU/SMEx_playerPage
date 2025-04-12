@@ -180,11 +180,6 @@ var style = `
     opacity: .8;
     transform: scale(0.9);
 }
-
-.SimLRC > div {
-    display: flex;
-    flex-flow: wrap;
-}
 `;
 
 let backgroundRule = document.createElement('style');
@@ -312,6 +307,7 @@ function deleteButton() {
     document.querySelector('#ExPlayerLyricsBtn')?.remove();
     document.querySelector('#ExPlayerFoldBtn')?.remove();
     document.querySelector('#ExPlayerFulldBtn')?.remove();
+    document.querySelector('#ExPlayerPlayTime')?.remove();
 }
 
 function loadStyles() {
@@ -357,6 +353,7 @@ SettingsPage.data.push(
     { type: "title", text: "[第三方扩展] 播放页面" },
     { type: "boolean", text: "启用修改的播放页面", description: "开启后将更改播放页面使其更加美观", configItem: "ext.playerPage.isEffect" },
     { type: "boolean", text: "播放页自动隐藏播放控件", description: "开启后在播放页超过3秒无操作则隐藏部分底栏", configItem: "ext.playerPage.autoHideBottom" },
+    { type: "button", text: "逐字歌词功能自动启用", description: "逐字歌词暂不支持自行开启/改变，未来可能添加", configItem: "ext.playerPage.autoHideBottom" },
 );
 
 config.listenChange("ext.playerPage.isEffect", () => loadStyles());

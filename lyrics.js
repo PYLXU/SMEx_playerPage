@@ -1,3 +1,16 @@
+let lastHandle = 0;
+
+includeStyleElement(`
+    .SimLRC > div {
+        display: flex;
+        flex-flow: wrap;
+    }
+
+    .SimLRC > div.WBWline > span {
+        white-space: pre;
+    }
+    `, "WBWLyricsStyle");
+
 const observerForElement = new MutationObserver((mutationsList, observer) => {
     mutationsList.forEach((mutation) => {
         if (mutation.type === 'childList') {
@@ -71,9 +84,8 @@ function parseYRC(yrcStr) {
                         while ((matchWord = wordRegex.exec(text)) !== null) {
                             const beforeText = text.substring(lastIndex, matchWord.index);
                             if (beforeText) {
-                                beforeText.split('').forEach(char => {
-                                    words.push({ tx: char });
-                                });
+                                // 保留空格和其他字符
+                                words.push({ tx: beforeText });
                             }
 
                             const [_, t, d, __, tx] = matchWord;
@@ -88,9 +100,8 @@ function parseYRC(yrcStr) {
 
                         const remainingText = text.substring(lastIndex);
                         if (remainingText) {
-                            remainingText.split('').forEach(char => {
-                                words.push({ tx: char });
-                            });
+                            // 保留空格和其他字符
+                            words.push({ tx: remainingText });
                         }
 
                         parsedLine = {
@@ -122,7 +133,7 @@ function parseYRC(yrcStr) {
                                     }
                                 }
 
-                                if (nextParsed && nextParsed.t !== undefined) {
+                                if (nextParsed && nextParsed.t !== undefined && parsedLine.d === undefined) {
                                     parsedLine.d = nextParsed.t - parsedLine.t;
                                 }
                             } catch (e) {
@@ -133,144 +144,320 @@ function parseYRC(yrcStr) {
                     }
                 }
             } catch (error) {
-                console.error(`Failed to parse line: ${line}, error: ${error.message}`);
+                console.error(`解析行失败: ${line}, 错误原因: ${error.message}`);
             }
         }
 
         return result;
     } catch (error) {
-        console.error('Failed to parse YRC:', error.message);
+        console.error('无法解析YRC歌词:', error.message);
         return [];
     }
 }
 
-function spawnYRCElement(yrc, audioElement) {
+const parseLRC = (translationData) => {
+    const translations = {};
+
+    if (!translationData) {
+        return translations;
+    }
+
+    const lines = translationData.split('\n');
+
+    for (let line of lines) {
+        line = line.trim();
+        const match = line.match(/^\[(\d+):(\d+)\.(\d+)\](.*)/);
+        if (!match) continue;
+
+        const minutes = parseInt(match[1], 10) || 0;
+        const seconds = parseInt(match[2], 10) || 0;
+        const milliseconds = parseInt(match[3].slice(0, 3).padEnd(3, '0'), 10);
+
+        const timestamp = minutes * 60000 + seconds * 1000 + milliseconds;
+
+        const text = match[4].trim();
+
+        if (text) {
+            translations[timestamp] = text;
+        }
+    }
+
+    return translations;
+};
+
+const findClosestTranslation = (translations, targetTime, maxTimeDiff = 1500) => {
+    let closestTime = null;
+    let minDiff = Infinity;
+
+    // 遍历所有翻译时间戳，找到最接近的一个
+    for (const time in translations) {
+        const diff = Math.abs(time - targetTime);
+        if (diff < minDiff && diff <= maxTimeDiff) {
+            minDiff = diff;
+            closestTime = time;
+        }
+    }
+
+    return closestTime !== null ? translations[closestTime] : null;
+};
+
+function spawnYRCElement(yrc, audioElement, translationData) {
     const lyricsElement = document.querySelector('.SimLRC');
+
+    let dotAnimationFrame = null;
     if (!lyricsElement) return;
 
     lyricsElement.innerHTML = '';
 
+    const translations = parseLRC(translationData);
+
+    console.log('Translation data:', translations);
+
+    // 存储每行歌词对应的翻译行
+    const translationLines = {};
+
     yrc.forEach((line, index) => {
+        // 创建包含原始歌词和翻译的容器
+        const lineContainer = document.createElement('div');
+        lineContainer.classList.add('line-container');
+        lineContainer.style.display = 'flex';
+        lineContainer.style.flexDirection = 'column';
+        lineContainer.style.alignItems = 'start';
+        lineContainer.style.marginBottom = '15px';
+
+        // 创建原始歌词行
         const lineDiv = document.createElement('div');
         if (index == 0) lineDiv.classList.add('active');
-        lineDiv.setAttribute('data-stamp', line.t);
-        lineDiv.setAttribute('data-duration', line.d);
+        lineContainer.setAttribute('data-stamp', line.t);
+        lineContainer.setAttribute('data-duration', line.d);
         lineDiv.style.filter = 'blur(5px)';
-        lineDiv.onclick = () => { audioElement.currentTime = lineDiv.dataset.stamp / 1000; };
+        lineDiv.classList.add('WBWline');
+        lineDiv.onclick = () => { audioElement.currentTime = lineContainer.dataset.stamp / 1000; };
 
+        // 添加逐字歌词
         line.c.forEach((word, index) => {
             const wordSpan = document.createElement('span');
             wordSpan.textContent = word.tx;
-            wordSpan.style.opacity = '.6';
-            wordSpan.style.transition = `opacity ${word.d}ms`;
-            wordSpan.setAttribute('data-stamp', word.t);
-            wordSpan.setAttribute('data-duration', word.d);
+            wordSpan.style.opacity = '0.6';
+            wordSpan.style.transition = 'opacity 300ms ease-out';
+            wordSpan.setAttribute('data-wordstamp', word.t);
+            wordSpan.setAttribute('data-wordduration', word.d);
             lineDiv.appendChild(wordSpan);
             if (index < line.c.length - 1) {
                 lineDiv.appendChild(document.createTextNode(' '));
             }
         });
 
-        lyricsElement.appendChild(lineDiv);
+        lineContainer.appendChild(lineDiv);
+
+        // 自动匹配翻译
+        const translation = findClosestTranslation(translations, line.t);
+        if (translation) {
+            const transDiv = document.createElement('div');
+            transDiv.classList.add('translation');
+            transDiv.setAttribute('data-transtamp', line.t);
+            transDiv.setAttribute('data-tranduration', line.d);
+            transDiv.textContent = translation;
+            transDiv.style.opacity = '0.6';
+            transDiv.style.transition = 'opacity 300ms';
+            transDiv.style.fontSize = '0.9em';
+            transDiv.style.color = '#aaa';
+            transDiv.style.marginTop = '5px';
+
+            lineContainer.appendChild(transDiv);
+
+            // 存储翻译行与歌词行的对应关系
+            translationLines[line.t] = transDiv;
+        }
+
+        lyricsElement.appendChild(lineContainer);
     });
 
     let activeDots = null;
+    let lastActiveLine = null;
 
     function updateLyrics(timestamp) {
-        const lines = Array.from(lyricsElement.children);
-        const TIME_TOLERANCE = 50; // 时间误差
+        if (lastHandle == 0) return;
+        if (lastHandle !== config.getItem('currentMusic')) return;
 
-        // 寻找活动行
-        let activeLine = null;
-        for (const line of lines) {
-            const lineStart = parseInt(line.getAttribute('data-stamp'), 10);
-            const lineDuration = parseInt(line.getAttribute('data-duration'), 10);
+        const containers = Array.from(lyricsElement.querySelectorAll('.line-container'));
+        const TIME_TOLERANCE = 50;
+
+        // 寻找当前激活行和下一行
+        let activeContainer = null;
+        let nextContainer = null;
+        for (let i = 0; i < containers.length; i++) {
+            const container = containers[i];
+            const lineStart = parseInt(container.getAttribute('data-stamp'), 10);
+            const lineDuration = parseInt(container.getAttribute('data-duration'), 10);
 
             if (timestamp >= lineStart - TIME_TOLERANCE && timestamp < lineStart + lineDuration + TIME_TOLERANCE) {
-                activeLine = line;
+                activeContainer = container;
+                if (i < containers.length - 1) {
+                    nextContainer = containers[i + 1];
+                }
+                break;
+            } else if (timestamp < lineStart && !activeContainer) {
+                nextContainer = container;
                 break;
             }
         }
 
-        // 等待点：因为不好实现直接塞后面当激活占位符了（x）
-        if (!activeLine && lines.every(line => !line.classList.contains('active'))) {
-            if (!activeDots) {
-                activeDots = document.createElement('div');
-                activeDots.textContent = '...';
-                activeDots.classList.add('active');
-                activeDots.style.fontWeight = 'bold';
-                activeDots.style.textAlign = 'center';
-                lyricsElement.appendChild(activeDots);
+        // 清除之前的动画帧
+        if (dotAnimationFrame) {
+            cancelAnimationFrame(dotAnimationFrame);
+            dotAnimationFrame = null;
+        }
+
+        // 更新三点占位符逻辑
+        if (!activeContainer && nextContainer) {
+            const prevContainer = lastActiveLine;
+
+            if (prevContainer) {
+                const prevStart = parseInt(prevContainer.getAttribute('data-stamp'), 10);
+                const prevDuration = parseInt(prevContainer.getAttribute('data-duration'), 10);
+                const nextStart = parseInt(nextContainer.getAttribute('data-stamp'), 10);
+
+                const interval = nextStart - (prevStart + prevDuration);
+                const segmentDuration = interval / 3;
+                const timeInInterval = timestamp - (prevStart + prevDuration);
+
+                if (timeInInterval > 0 && timeInInterval < interval) {
+                    if (!activeDots) {
+                        activeDots = document.createElement('div');
+                        activeDots.innerHTML = '<span class="dot">●</span>　<span class="dot">●</span>　<span class="dot">●</span>';
+                        activeDots.classList.add('active-dots');
+                        activeDots.classList.add('active');
+                        activeDots.style.textAlign = 'center';
+                        activeDots.style.fontSize = '1.2em';
+                        activeDots.style.opacity = '0.6';
+                        activeDots.style.marginTop = '10px';
+
+                        if (prevContainer.nextSibling) {
+                            prevContainer.parentNode.insertBefore(activeDots, prevContainer.nextSibling);
+                        } else {
+                            lyricsElement.appendChild(activeDots);
+                        }
+                    }
+
+                    // 更新三个点的透明度
+                    const dots = activeDots.querySelectorAll('.dot');
+                    dots.forEach((dot, index) => {
+                        const dotStartTime = segmentDuration * index;
+                        const dotEndTime = segmentDuration * (index + 1);
+
+                        if (timeInInterval >= dotStartTime && timeInInterval < dotEndTime) {
+                            // 当前点正在激活
+                            const progress = (timeInInterval - dotStartTime) / segmentDuration;
+                            dot.style.opacity = 0.6 + (0.4 * progress);
+
+                            // 已经过去的点保持高亮
+                            for (let i = 0; i < index; i++) {
+                                dots[i].style.opacity = '1';
+                            }
+
+                            // 还未到达的点保持低亮
+                            for (let i = index + 1; i < dots.length; i++) {
+                                dots[i].style.opacity = '0.6';
+                            }
+                        } else if (timeInInterval >= dotEndTime) {
+                            // 这个点已经完全激活
+                            dot.style.opacity = '1';
+                        } else {
+                            // 这个点还未激活
+                            dot.style.opacity = '0.6';
+                        }
+                    });
+                } else if (activeDots) {
+                    activeDots.remove();
+                    activeDots = null;
+                }
             }
         } else if (activeDots) {
+            activeDots.remove();
             activeDots = null;
         }
 
         // 更新行状态
-        lines.forEach((line, index) => {
-            const lineStart = parseInt(line.getAttribute('data-stamp'), 10);
-            const lineDuration = parseInt(line.getAttribute('data-duration'), 10);
+        containers.forEach(container => {
+            const lineDiv = container.querySelector('.WBWline');
+            const lineStart = parseInt(container.getAttribute('data-stamp'), 10);
+            const lineDuration = parseInt(container.getAttribute('data-duration'), 10);
 
-            if (line === activeLine) {
-                line.classList.add('active');
-                line.style.filter = 'none';
+            if (container === activeContainer) {
+                lineDiv.classList.add('active');
+                lineDiv.style.filter = 'none';
+                lineDiv.style.opacity = '1';
+                lastActiveLine = container;
 
-                const words = Array.from(line.querySelectorAll('span'));
-                let currentWordFound = false;
+                // 更新对应的翻译行样式
+                const transDiv = container.querySelector('.translation');
+                if (transDiv) {
+                    transDiv.style.opacity = '0.9';
+                }
+
+                // 更新逐字歌词样式
+                const words = Array.from(lineDiv.querySelectorAll('span'));
+                let anyWordActive = false;
 
                 words.forEach((word, wordIndex) => {
-                    const wordStart = parseInt(word.getAttribute('data-stamp'), 10);
-                    const wordDuration = parseInt(word.getAttribute('data-duration'), 10);
+                    const wordStart = parseInt(word.getAttribute('data-wordstamp'), 10);
+                    const wordDuration = parseInt(word.getAttribute('data-wordduration'), 10);
                     const wordEnd = wordStart + wordDuration;
-
-                    // 重置样式
-                    word.style.opacity = '0.6';
-                    word.style.textShadow = 'none';
-                    word.style.transition = `opacity ${wordDuration}ms`;
 
                     if (timestamp >= wordStart && timestamp < wordEnd) {
                         word.style.opacity = '1';
-                        currentWordFound = true;
-
-                        // 添加阴影
-                        if (wordIndex === words.length - 1) {
+                        if (wordIndex >= words.length - 1) {
                             word.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
                         }
+                        anyWordActive = true;
                     } else if (timestamp >= wordEnd) {
-                        word.style.opacity = '0.8';
-                        if (wordIndex === words.length - 1) {
-                            word.style.textShadow = 'none';
-                        }
+                        word.style.opacity = '0.9';
+                        word.style.textShadow = 'none';
+                    } else {
+                        word.style.opacity = '0.6';
+                        word.style.textShadow = 'none';
                     }
                 });
 
-                if (!currentWordFound) {
-                    for (let i = words.length - 1; i >= 0; i--) {
-                        const word = words[i];
-                        const wordStart = parseInt(word.getAttribute('data-stamp'), 10);
-                        if (timestamp >= wordStart) {
-                            word.style.opacity = '0.8';
-                            word.style.textShadow = 'none';
-                            break;
-                        }
-                    }
+                // 如果没有单词处于激活状态，但整行歌词处于激活时间段
+                if (!anyWordActive && timestamp >= lineStart && timestamp < lineStart + lineDuration) {
+                    words.forEach(word => {
+                        word.style.opacity = '0.9';
+                        word.style.textShadow = 'none';
+                    });
                 }
             } else {
-                line.classList.remove('active');
-                line.style.filter = 'blur(5px)';
-                Array.from(line.querySelectorAll('span')).forEach(word => {
+                lineDiv.classList.remove('active');
+                lineDiv.style.filter = 'blur(5px)';
+
+                const transDiv = container.querySelector('.translation');
+                if (transDiv) {
+                    transDiv.style.opacity = '0.6';
+                }
+
+                Array.from(lineDiv.querySelectorAll('span')).forEach(word => {
                     word.style.opacity = '0.6';
                     word.style.textShadow = 'none';
                 });
             }
         });
 
-        if (!activeLine && !activeDots) {
+        // 如果没有激活行且没有占位符，创建占位符
+        if (!activeContainer && !activeDots) {
             activeDots = document.createElement('div');
-            activeDots.textContent = '...';
-            activeDots.classList.add('active');
+            activeDots.innerHTML = '●　●　●';
+            activeDots.classList.add('active-dots');
             activeDots.style.textAlign = 'center';
-            lyricsElement.appendChild(activeDots);
+            activeDots.style.fontSize = '1.2em';
+            activeDots.style.opacity = '0.6';
+            activeDots.style.marginTop = '10px';
+
+            if (lastActiveLine && lastActiveLine.nextSibling) {
+                lastActiveLine.parentNode.insertBefore(activeDots, lastActiveLine.nextSibling);
+            } else {
+                lyricsElement.appendChild(activeDots);
+            }
         }
     }
 
@@ -282,15 +469,12 @@ function spawnYRCElement(yrc, audioElement) {
     }
 }
 
-
-
-let lastHandle = 0;
-
 async function startReplaceElement() {
     const musicId = config.getItem('currentMusic');
     const lyricsElement = document.querySelector('.SimLRC');
     if (lastHandle == musicId) return;
     lastHandle = musicId;
+    console.log('开始加载歌曲', musicId);
     if (config.getItem('ext')['ncm'] == null) {
         console.error('未安装网易云扩展但正在尝试播放网易云音乐');
         return;
@@ -302,13 +486,18 @@ async function startReplaceElement() {
     }
     if (musicId.startsWith('ncm:')) {
         postApiArray(apiUrl + '/lyric/new?id=' + musicId.replace('ncm:', ''), (lyrics) => {
+            if (lyrics == null) {
+                console.error('歌词数据为空');
+                return;
+            }
             if (lyrics.yrc == null) {
+                console.error('该歌曲暂无逐字歌词');
                 return;
             }
             lyricsElement.innerHTML = '<div data-stamp="0" style="filter: none;" class="active"><span>正在加载逐字歌词</span></div>';
             const yrc = parseYRC(lyrics.yrc.lyric);
             console.log(yrc);
-            spawnYRCElement(yrc, document.querySelector('#audio'));
+            spawnYRCElement(yrc, document.querySelector('#audio'), lyrics.tlyric ? lyrics.tlyric.lyric : '');
         });
     }
 }
