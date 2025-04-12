@@ -260,9 +260,10 @@ function spawnYRCElement(yrc, audioElement, translationData) {
             transDiv.textContent = translation;
             transDiv.style.opacity = '0.6';
             transDiv.style.transition = 'opacity 300ms';
-            transDiv.style.fontSize = '0.9em';
-            transDiv.style.color = '#aaa';
+            transDiv.style.fontSize = '0.8em';
             transDiv.style.marginTop = '5px';
+            transDiv.onclick = () => { audioElement.currentTime = lineContainer.dataset.stamp / 1000; };
+
 
             lineContainer.appendChild(transDiv);
 
@@ -329,9 +330,13 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         activeDots.classList.add('active-dots');
                         activeDots.classList.add('active');
                         activeDots.style.textAlign = 'center';
+                        activeDots.setAttribute('data-stamp', prevStart + prevDuration);
+                        activeDots.setAttribute('data-duration', interval);
                         activeDots.style.fontSize = '1.2em';
                         activeDots.style.opacity = '0.6';
                         activeDots.style.marginTop = '10px';
+                        activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        activeDots.style.display = interval > 1000 ? 'flex' : 'none';
 
                         if (prevContainer.nextSibling) {
                             prevContainer.parentNode.insertBefore(activeDots, prevContainer.nextSibling);
@@ -345,26 +350,18 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                     dots.forEach((dot, index) => {
                         const dotStartTime = segmentDuration * index;
                         const dotEndTime = segmentDuration * (index + 1);
-
                         if (timeInInterval >= dotStartTime && timeInInterval < dotEndTime) {
-                            // 当前点正在激活
                             const progress = (timeInInterval - dotStartTime) / segmentDuration;
                             dot.style.opacity = 0.6 + (0.4 * progress);
-
-                            // 已经过去的点保持高亮
                             for (let i = 0; i < index; i++) {
                                 dots[i].style.opacity = '1';
                             }
-
-                            // 还未到达的点保持低亮
                             for (let i = index + 1; i < dots.length; i++) {
                                 dots[i].style.opacity = '0.6';
                             }
                         } else if (timeInInterval >= dotEndTime) {
-                            // 这个点已经完全激活
                             dot.style.opacity = '1';
                         } else {
-                            // 这个点还未激活
                             dot.style.opacity = '0.6';
                         }
                     });
@@ -442,23 +439,6 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                 });
             }
         });
-
-        // 如果没有激活行且没有占位符，创建占位符
-        if (!activeContainer && !activeDots) {
-            activeDots = document.createElement('div');
-            activeDots.innerHTML = '●　●　●';
-            activeDots.classList.add('active-dots');
-            activeDots.style.textAlign = 'center';
-            activeDots.style.fontSize = '1.2em';
-            activeDots.style.opacity = '0.6';
-            activeDots.style.marginTop = '10px';
-
-            if (lastActiveLine && lastActiveLine.nextSibling) {
-                lastActiveLine.parentNode.insertBefore(activeDots, lastActiveLine.nextSibling);
-            } else {
-                lyricsElement.appendChild(activeDots);
-            }
-        }
     }
 
     if (audioElement) {
