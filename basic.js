@@ -84,6 +84,14 @@ var style = `
     transition: all .3s;
 }
 
+.playerShown > .bottom > .progressBefore {
+    display: none;
+}
+
+.playerShown > .bottom > .progressAfter {
+    display: none;
+}
+
 .playerShown > .bottom > .info {
     display: none;
 }
@@ -127,6 +135,10 @@ var style = `
     margin-top: 0:
 }
 
+.playerShown > .bottom > .center.hidden > div:not(.ignoreHide),.playerShown > .bottom > .volume.hidden > div:not(.ignoreHide) {
+    opacity: 0;
+}
+
 .playerShown > .bottom > .volBtnBottom {
     top: 0;
 }
@@ -162,6 +174,16 @@ var style = `
 
 .ExPlayerBtn:hover {
     opacity: .8;
+}
+
+.ExPlayerBtn:active {
+    opacity: .8;
+    transform: scale(0.9);
+}
+
+.SimLRC > div {
+    display: flex;
+    flex-flow: wrap;
 }
 `;
 
@@ -241,6 +263,7 @@ function addButton() {
     menuBtn.appendChild(menuIcon);
     menuBtn.id = 'ExPlayerMenuBtn';
     menuBtn.title = '播放器菜单';
+    menuBtn.classList.add('ignoreHide');
     menuBtn.visibility = 'visible';
     document.querySelector('.bottom > .center')?.insertAdjacentElement('afterbegin', menuBtn);
 
@@ -327,11 +350,15 @@ function loadStyles() {
 
 }
 
+defaultConfig['ext.playerPage.isEffect'] = true;
+defaultConfig['ext.playerPage.autoHideBottom'] = true;
+
 SettingsPage.data.push(
     { type: "title", text: "[第三方扩展] 播放页面" },
     { type: "boolean", text: "启用修改的播放页面", description: "开启后将更改播放页面使其更加美观", configItem: "ext.playerPage.isEffect" },
     { type: "boolean", text: "播放页自动隐藏播放控件", description: "开启后在播放页超过3秒无操作则隐藏部分底栏", configItem: "ext.playerPage.autoHideBottom" },
 );
+
 config.listenChange("ext.playerPage.isEffect", () => loadStyles());
 config.listenChange("darkPlayer", () => {
     setTimeout(() => {
@@ -342,24 +369,21 @@ loadStyles();
 
 // 歌词载入
 
-config.listenChange("ext.darkMode.isEffect", (value) => {
-    if (value) {
-
-    }
-});
-
 
 // 自动隐藏
 let inactivityTimer;
 const INACTIVITY_THRESHOLD = 3000; // 3秒
 function onInactivity() {
     if (!document.body.classList.contains('playerShown')) return;
+    document.querySelector('.bottom > .center').style.visibility = 'hidden';
+    document.querySelector('.bottom > .volume').style.visibility = 'hidden';
     document.querySelector('#bottomProgressBar').style.top = 'auto';
     document.querySelector('#bottomProgressBar').style.bottom = '0';
-    document.querySelector('.bottom > .volume').style.visibility = 'hidden';
-    document.querySelector('.bottom > .center').style.visibility = 'hidden';
     document.querySelector('.bottom > .center > .play').style.visibility = 'visible';
+    document.querySelector('.bottom > .center > .play').classList.add('ignoreHide');
     document.querySelector('.bottom > .center > #ExPlayerMenuBtn').style.visibility = 'visible';
+    document.querySelector('.bottom > .center').classList.add('hidden');
+    document.querySelector('.bottom > .volume').classList.add('hidden');
     document.querySelector('.bottom').style.backdropFilter = 'blur(0px)';
     document.querySelector('#ExPlayerPlayTime').style.right = '30px';
     document.hasInactivity = true;
@@ -370,6 +394,8 @@ function onActivity() {
     document.querySelector('.bottom > .volume').style.visibility = 'visible';
     document.querySelector('.bottom > .center').style.visibility = 'visible';
     document.querySelector('.bottom').style.backdropFilter = 'blur(70px)';
+    document.querySelector('.bottom > .center').classList.remove('hidden');
+    document.querySelector('.bottom > .volume').classList.remove('hidden');
     document.querySelector('.bottom > .center > #ExPlayerMenuBtn').style.visibility = 'visible';
     document.querySelector('#ExPlayerPlayTime').style.right = '190px';
 }
@@ -385,7 +411,7 @@ function setupActivityListeners() {
     document.addEventListener('wheel', handleUserActivity); // 滚轮事件
 }
 function handleUserActivity() {
-    if (ext.playerPage.autoHideBottom) {
+    if (config.getItem('ext.playerPage.autoHideBottom') == false) {
         onActivity();
         return;
     }

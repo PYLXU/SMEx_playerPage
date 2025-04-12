@@ -5,7 +5,8 @@
   "version": "0.0.1",
   "entries": [
     "function.js",
-    "basic.js"
+    "basic.js",
+    "lyrics.js"
   ]
 }
   
