@@ -445,10 +445,13 @@ function spawnYRCElement(yrc, audioElement, translationData) {
     }
 
     if (audioElement) {
-        audioElement.addEventListener('timeupdate', () => {
+        if (!audioElement.hasLyricsListener) {
+            audioElement.addEventListener('timeupdate', () => {
             const currentTime = audioElement.currentTime * 1000;
             updateLyrics(currentTime);
-        });
+            });
+            audioElement.hasLyricsListener = true;
+        }
     }
 }
 
