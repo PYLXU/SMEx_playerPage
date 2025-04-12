@@ -199,6 +199,11 @@ const findClosestTranslation = (translations, targetTime, maxTimeDiff = 1500) =>
 };
 
 function spawnYRCElement(yrc, audioElement, translationData) {
+    document.querySelectorAll('.active-dots').forEach((element) => {
+        element.remove();
+    });
+
+
     const lyricsElement = document.querySelector('.SimLRC');
 
     let dotAnimationFrame = null;
