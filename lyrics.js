@@ -1,12 +1,9 @@
 let lastHandle = 0;
 
 includeStyleElement(`
-    .SimLRC > div {
+    .WBWline {
         display: flex;
         flex-flow: wrap;
-    }
-
-    .SimLRC > div.WBWline > span {
         white-space: pre;
     }
     `, "WBWLyricsStyle");
@@ -324,7 +321,8 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                 const timeInInterval = timestamp - (prevStart + prevDuration);
 
                 if (timeInInterval > 0 && timeInInterval < interval) {
-                    if (!activeDots) {
+                    if (activeDots) activeDots.remove();
+                    if (!activeDots || !lyricsElement.contains(activeDots)) {
                         activeDots = document.createElement('div');
                         activeDots.innerHTML = '<span class="dot">●</span>　<span class="dot">●</span>　<span class="dot">●</span>';
                         activeDots.classList.add('active-dots');
@@ -337,7 +335,6 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         activeDots.style.marginTop = '10px';
                         activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         activeDots.style.display = interval > 1000 ? 'flex' : 'none';
-
                         if (prevContainer.nextSibling) {
                             prevContainer.parentNode.insertBefore(activeDots, prevContainer.nextSibling);
                         } else {
@@ -368,6 +365,7 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                 } else if (activeDots) {
                     activeDots.remove();
                     activeDots = null;
+                    activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
         } else if (activeDots) {
