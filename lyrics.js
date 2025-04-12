@@ -198,6 +198,8 @@ const findClosestTranslation = (translations, targetTime, maxTimeDiff = 1500) =>
     return closestTime !== null ? translations[closestTime] : null;
 };
 
+let scrollTimeout = null;
+
 function spawnYRCElement(yrc, audioElement, translationData) {
     document.querySelectorAll('.active-dots').forEach((element) => {
         element.remove();
@@ -338,7 +340,10 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         activeDots.style.fontSize = '1.2em';
                         activeDots.style.opacity = '0.6';
                         activeDots.style.marginTop = '10px';
-                        activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // if (scrollTimeout) clearTimeout(scrollTimeout);
+                        // scrollTimeout = setTimeout(() => {
+                        //     activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // }, 500);
                         activeDots.style.display = interval > 1000 ? 'flex' : 'none';
                         if (prevContainer.nextSibling) {
                             prevContainer.parentNode.insertBefore(activeDots, prevContainer.nextSibling);
@@ -370,7 +375,10 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                 } else if (activeDots) {
                     activeDots.remove();
                     activeDots = null;
-                    activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // if (scrollTimeout) clearTimeout(scrollTimeout);
+                    // scrollTimeout = setTimeout(() => {
+                    //     activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // }, 500);
                 }
             }
         } else if (activeDots) {
@@ -385,9 +393,11 @@ function spawnYRCElement(yrc, audioElement, translationData) {
             const lineDuration = parseInt(container.getAttribute('data-duration'), 10);
 
             if (container === activeContainer) {
+                const words = Array.from(lineDiv.querySelectorAll('span'));
+
                 lineDiv.classList.add('active');
                 lineDiv.style.filter = 'none';
-                lineDiv.style.opacity = '1';
+                if (words[0].getAttribute('data-wordstamp') == null) lineDiv.style.opacity = '1';
                 lastActiveLine = container;
 
                 // 更新对应的翻译行样式
@@ -397,7 +407,6 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                 }
 
                 // 更新逐字歌词样式
-                const words = Array.from(lineDiv.querySelectorAll('span'));
                 let anyWordActive = false;
 
                 words.forEach((word, wordIndex) => {
@@ -447,8 +456,8 @@ function spawnYRCElement(yrc, audioElement, translationData) {
     if (audioElement) {
         if (!audioElement.hasLyricsListener) {
             audioElement.addEventListener('timeupdate', () => {
-            const currentTime = audioElement.currentTime * 1000;
-            updateLyrics(currentTime);
+                const currentTime = audioElement.currentTime * 1000;
+                updateLyrics(currentTime);
             });
             audioElement.hasLyricsListener = true;
         }
@@ -486,4 +495,24 @@ async function startReplaceElement() {
             spawnYRCElement(yrc, document.querySelector('#audio'), lyrics.tlyric ? lyrics.tlyric.lyric : '');
         });
     }
+}
+
+let EXprogressObserver2 = new MutationObserver(() => {
+    let currentTime = document.querySelector('#progressCurrent')?.innerHTML;
+    let totalTime = document.querySelector('#progressDuration')?.innerHTML;
+    let playTimeElement = document.querySelector('#ExPlayerPlayTime');
+    if (playTimeElement) {
+        if (currentTime == totalTime) {
+            lastHandle = 0;
+        }
+    }
+})
+
+let EXprogressCurrentElement2 = document.querySelector('#progressCurrent');
+let EXprogressDurationElement2 = document.querySelector('#progressDuration');
+if (EXprogressCurrentElement2) {
+    EXprogressObserver2.observe(EXprogressCurrentElement2, { childList: true, subtree: true });
+}
+if (EXprogressDurationElement2) {
+    EXprogressObserver2.observe(EXprogressDurationElement2, { childList: true, subtree: true });
 }
