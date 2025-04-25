@@ -59,7 +59,7 @@ body:not(.hideLyrics.hideList) .playerContainer {
     display: none;
 }
 
-.WBWline,active-dots {
+.WBWline,.active-dots {
     justify-content: center !important;
 }
 `;
@@ -268,6 +268,21 @@ let progressObserver = new MutationObserver(() => {
     }
 })
 
+let lMNObserver = new MutationObserver(() => {
+    let lmSongNameElement = document.querySelector('#ExPlayerLmSongName');
+    if (config.getItem("ext.playerPage.lyricMode") == false) {
+        if (lmSongNameElement) {
+            lmSongNameElement.style.display = 'none';
+        }
+        return;
+    };
+    let musicFullName = document.querySelector('.musicInfo > div')?.innerHTML + " - " + document.querySelector('.musicInfo > b')?.innerHTML;
+    if (lmSongNameElement) {
+        lmSongNameElement.style.display = 'block';
+        lmSongNameElement.innerHTML = musicFullName;
+    }
+})
+
 function setBackground(albumSrc) {
     let backgroundMode = config.getItem("playerSetting_backgroundMode");
     if (albumSrc) {
@@ -342,6 +357,19 @@ function addButton() {
     foldBtn.id = 'ExPlayerFoldBtn';
     foldBtn.title = '收起播放页';
     document.querySelector('#playPage')?.insertAdjacentElement('afterbegin', foldBtn);
+
+    let lmSongName = document.createElement('div');
+    lmSongName.style.position = 'absolute';
+    lmSongName.style.left = '50%';
+    lmSongName.style.top = '30px';
+    lmSongName.style.transform = 'translateX(-50%)';
+    lmSongName.className = 'ExPlayerBtn';
+    lmSongName.id = 'ExPlayerLmSongName';
+    lmSongName.style.display = 'none';
+    lmSongName.style.whiteSpace = 'nowrap';
+    lmSongName.style.overflow = 'hidden';
+    lmSongName.style.textOverflow = 'ellipsis';
+    document.querySelector('#playPage')?.insertAdjacentElement('afterbegin', lmSongName);
 
     let fullToogleBtn = document.createElement('div');
     fullToogleBtn.onclick = () => {
@@ -598,6 +626,7 @@ function deleteButton() {
     document.querySelector('#ExPlayerPlayTime')?.remove();
     document.querySelector('#playerSet')?.remove();
     document.querySelector('#ExPlayerSetBtn')?.remove();
+    document.querySelector('#ExPlayerLmSongName')?.remove();
 }
 
 function loadStyles() {
@@ -627,12 +656,17 @@ function loadStyles() {
         if (progressDurationElement) {
             progressObserver.observe(progressDurationElement, { childList: true, subtree: true });
         }
+        if (document.querySelector('.musicInfo > div') && document.querySelector('.musicInfo > b')) {
+            lMNObserver.observe(document.querySelector('.musicInfo > div'), { childList: true, subtree: true });
+            lMNObserver.observe(document.querySelector('.musicInfo > b'), { childList: true, subtree: true });
+        }
         addButton();
         includeStyleElement(styles, "ExPlayerPage");
     } else {
         albumObserver.disconnect();
         fullscreenObserver.disconnect();
         progressObserver.disconnect();
+        lMNObserver.disconnect();
         document.querySelector("#ExPlayerPage")?.remove();
         deleteButton();
     }
