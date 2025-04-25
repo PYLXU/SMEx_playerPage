@@ -1,5 +1,6 @@
 let lastHandle = 0;
 
+
 includeStyleElement(`
     .WBWline {
         display: flex;
@@ -344,7 +345,7 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         // scrollTimeout = setTimeout(() => {
                         //     activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         // }, 500);
-                        activeDots.style.display = interval > 1000 ? 'flex' : 'none';
+                        activeDots.style.display = interval > 10000 ? 'flex' : 'none';
                         if (prevContainer.nextSibling) {
                             prevContainer.parentNode.insertBefore(activeDots, prevContainer.nextSibling);
                         } else {
@@ -416,15 +417,17 @@ function spawnYRCElement(yrc, audioElement, translationData) {
 
                     if (timestamp >= wordStart && timestamp < wordEnd) {
                         word.style.opacity = '1';
-                        if (wordIndex >= words.length - 1) {
+                        if (wordDuration >= 1000) {
                             word.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+                        } else {
+                            word.style.textShadow = 'none';
                         }
                         anyWordActive = true;
                     } else if (timestamp >= wordEnd) {
-                        word.style.opacity = '0.9';
+                        word.style.opacity = '1';
                         word.style.textShadow = 'none';
                     } else {
-                        word.style.opacity = '0.6';
+                        word.style.opacity = '0.5';
                         word.style.textShadow = 'none';
                     }
                 });

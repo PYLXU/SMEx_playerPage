@@ -16,6 +16,54 @@ if (config.getItem("ext").lyricsMode != null) {
     location.reload();
 }
 
+var lyricsModeCSS = `
+.controls {
+    position: absolute;
+    margin-bottom: 0;
+    width: 100%;
+}
+.controls #album {
+    display: none;
+}
+.lyrics,.list {
+    width: 100%;
+    left: 0;
+}
+
+body:not(.hideLyrics.hideList) .playerContainer {
+    transform: translateX(0px);
+}
+
+.hideLyrics.hideList .controls {
+    margin: auto;
+    width: 350px;
+}
+
+.SimLRC {
+    --align: center !important;
+}
+
+.lyrics, .list {
+    height: 90%;
+}
+
+.infoBar {
+    display: none;
+}
+
+.line-container {
+    align-items: center !important;
+}
+
+.infoBar .musicInfo {
+    display: none;
+}
+
+.WBWline,active-dots {
+    justify-content: center !important;
+}
+`;
+
 var style = `
 .playerContainer {
     margin: 20px max(calc(50vw - 700px), 110px);
@@ -180,6 +228,13 @@ var style = `
     opacity: .8;
     transform: scale(0.9);
 }
+
+#playerSet .block {
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, .1);
+    padding: 5px;
+    border-radius: 5px;
+}
 `;
 
 let backgroundRule = document.createElement('style');
@@ -214,8 +269,11 @@ let progressObserver = new MutationObserver(() => {
 })
 
 function setBackground(albumSrc) {
+    let backgroundMode = config.getItem("playerSetting_backgroundMode");
     if (albumSrc) {
-        backgroundRule.textContent = `
+        if (backgroundMode == 0) {
+            document.querySelector('#background').style.display = 'none';
+            backgroundRule.textContent = `
                             #playPage::before {
                                 content: '';
                                 position: absolute;
@@ -228,6 +286,16 @@ function setBackground(albumSrc) {
                                 z-index: -1;
                             }
                         `;
+        } else if (backgroundMode == 1) {
+            config.setItem("backgroundBlur", true);
+            document.querySelector('#background').style.display = 'block';
+            backgroundRule.textContent = ``;
+        } else {
+            config.setItem("backgroundBlur", false);
+            document.querySelector('#background').style.display = 'block';
+            backgroundRule.textContent = ``;
+
+        }
     }
 }
 
@@ -300,6 +368,226 @@ function addButton() {
     playTime.style.fontSize = '0.8em';
     playTime.innerHTML = '';
     document.querySelector('.bottom')?.insertAdjacentElement('afterbegin', playTime);
+
+    let setBtn = document.createElement('div');
+    setBtn.style.position = 'absolute';
+    setBtn.onclick = () => {
+        let playerSet = document.querySelector('#playerSet');
+        if (playerSet.style.display == 'none') {
+            playerSet.style.display = 'block';
+            setBtn.style.opacity = '1';
+        }
+        else {
+            playerSet.style.display = 'none';
+            setBtn.style.opacity = '.3';
+        }
+    };
+    setBtn.style.right = '30px';
+    setBtn.style.top = '44px';
+    let setIcon = document.createElement('i');
+    setIcon.innerHTML = '';
+    setBtn.appendChild(setIcon);
+    setBtn.className = 'ExPlayerBtn';
+    setBtn.id = 'ExPlayerSetBtn';
+    setBtn.title = '播放器设置';
+    document.querySelector('#playPage')?.insertAdjacentElement('afterbegin', setBtn);
+
+    const playerSettings = [
+        {
+            type: 'title',
+            text: '⌈设置⌋ 页面更改更多设置'
+        },
+        {
+            name: 'playerSetting_backgroundMode',
+            type: 'select',
+            label: '背景类型',
+            options: [
+                [0, '封面模糊'],
+                [1, '动态混色'],
+                [2, '封面混色']
+            ],
+            default: 0
+        },
+        {
+            name: 'playerSetting_blurEffect',
+            type: 'input',
+            label: '背景模糊程度',
+            inputType: 'number',
+            dependency: 'playerSetting_backgroundMode',
+            dependencyValue: 0,
+            default: 70
+        },
+        {
+            name: 'playerSetting_darknessEffect',
+            type: 'input',
+            label: '背景阴暗程度',
+            inputType: 'number',
+            dependency: 'playerSetting_backgroundMode',
+            dependencyValue: 0,
+            default: 0.6
+        },
+        {
+            name: 'ext.playerPage.lyricMode',
+            type: 'switch',
+            label: '歌词纯享模式',
+            default: false
+        }, ,
+        {
+            name: 'lyricBlur',
+            type: 'switch',
+            label: '歌词层级虚化',
+            default: true
+        },
+        {
+            name: 'ext.playerPage.autoHideBottom',
+            type: 'switch',
+            label: '自动隐藏底栏',
+            default: false
+        },
+        {
+            name: '3dEffect',
+            type: 'switch',
+            label: '页面立体特效',
+            default: false
+        }
+    ];
+
+    let dependency = playerSettings.filter(setting => setting.dependency);
+
+    let playerSet = document.createElement('div');
+    playerSet.style.position = 'absolute';
+    playerSet.style.display = 'none';
+    playerSet.style.width = '220px';
+    playerSet.style.top = '36px';
+    playerSet.style.background = 'rgba(120,120,120,.2)';
+    playerSet.style.height = '360px';
+    playerSet.style.right = '20px';
+    playerSet.style.zIndex = '1000';
+    playerSet.style.padding = '15px';
+    playerSet.style.borderRadius = '5px';
+    playerSet.style.backdropFilter = 'blur(10px)';
+    playerSet.id = 'playerSet';
+    playerSet.className = 'playerSet';
+
+    let settingsHtml = '<div style="padding-bottom: 10px; font-size: 1.2em;">播放器设置</div>';
+    playerSet.innerHTML = settingsHtml;
+
+    setContaienrr = document.createElement('div');
+
+    function checkDependency() {
+        // 还没做完，下次一定
+        // dependency.forEach(dependencySetting => {
+        //     const dependencyValue = (config.getItem(dependencySetting.dependency));
+        //     const dependencyDiv = document.querySelector(`div[data-setting-name="${dependencySetting.name}"]`);
+        //     if (dependencyDiv) {
+        //         if (dependencyValue != dependencySetting.dependencyValue) {
+        //             dependencyDiv.style.display = 'none';
+        //         } else {
+        //             dependencyDiv.style.display = 'block';
+        //         }
+        //     }
+        // });
+    }
+
+    playerSettings.forEach(setting => {
+        const storedValue = config.getItem(`${setting.name}`) ?? setting.default;
+        const div = document.createElement('div');
+        div.classList.add('block');
+
+        if (setting.dependency) {
+            // console.log(setting.name, setting.dependency, setting.dependencyValue);
+            const dependencyValue = (config.getItem(setting.dependency));
+            if (dependencyValue != setting.dependencyValue) {
+                div.style.display = 'none';
+            }
+        }
+
+        switch (setting.type) {
+            case 'title':
+                div.classList.add('title');
+                div.textContent = setting.text;
+                break;
+
+            case 'range':
+                div.innerHTML = `${setting.label}<div class="range" min="${setting.min}" max="${setting.max}" value="${storedValue}"></div>`;
+                const range = new SimProgress(div.querySelector('.range'));
+                range.ondrag = value => {
+                    config.setItem(`${setting.name}`, value);
+                    checkDependency();
+                };
+                break;
+
+            case 'switch':
+                div.innerHTML = `<label style="display:flex"><span style="flex:1">${setting.label}</span><div class="toggle"></div></label>`;
+                div.classList.add(storedValue === true ? 'on' : 'off');
+                div.onclick = () => {
+                    div.classList.toggle('on');
+                    div.classList.toggle('off');
+                    const newValue = div.classList.contains('on');
+                    config.setItem(`${setting.name}`, newValue);
+                    checkDependency();
+                };
+                break;
+
+            case 'input':
+                div.innerHTML = `${setting.label}<br><input style="width:95%;margin:2%;" type="${setting.inputType ?? 'text'}">`;
+                const input = div.querySelector('input');
+                input.value = storedValue;
+                input.autocomplete = input.spellcheck = false;
+                input.onchange = () => {
+                    config.setItem(`${setting.name}`, input.value);
+                    checkDependency();
+                };
+                break;
+
+            case 'select':
+                div.innerHTML = `${setting.label}<br><select style="width:95%;margin:2%;"></select>`;
+                const select = div.querySelector('select');
+                setting.options.forEach(option => {
+                    const optionEle = document.createElement('option');
+                    optionEle.value = option[0];
+                    optionEle.textContent = option[1];
+                    select.appendChild(optionEle);
+                });
+                select.value = storedValue;
+                select.onchange = () => {
+                    config.setItem(`${setting.name}`, select.value);
+                    checkDependency();
+                };
+                break;
+
+            case 'color':
+                div.innerHTML = `${setting.label}<div class="colorInput"><span></span><input type="color"></div>`;
+                const colorInput = div.querySelector('input');
+                colorInput.value = storedValue;
+                div.querySelector('.colorInput > span').textContent = storedValue;
+                div.querySelector('.colorInput > span').style.color = storedValue;
+                colorInput.onchange = () => {
+                    div.querySelector('.colorInput > span').textContent = colorInput.value;
+                    div.querySelector('.colorInput > span').style.color = colorInput.value;
+                    config.setItem(`${setting.name}`, colorInput.value);
+                    checkDependency();
+                };
+                break;
+
+            case 'button':
+                div.innerHTML = `${setting.label}<button class="sub">${SimMusicTools.escapeHtml(setting.button)}</button>`;
+                div.onclick = setting.onclick;
+                break;
+
+            default:
+                console.warn(`不支持的组件: ${setting.type}`);
+                return;
+        }
+        setContaienrr.appendChild(div);
+    });
+
+    setContaienrr.style.overflowY = 'auto';
+    setContaienrr.style.maxHeight = '300px';
+
+    playerSet.appendChild(setContaienrr);
+
+    document.querySelector('#playPage')?.insertAdjacentElement('afterbegin', playerSet);
 }
 
 function deleteButton() {
@@ -308,11 +596,16 @@ function deleteButton() {
     document.querySelector('#ExPlayerFoldBtn')?.remove();
     document.querySelector('#ExPlayerFulldBtn')?.remove();
     document.querySelector('#ExPlayerPlayTime')?.remove();
+    document.querySelector('#playerSet')?.remove();
+    document.querySelector('#ExPlayerSetBtn')?.remove();
 }
 
 function loadStyles() {
     config.setItem("darkPlayer", true);
     let styles = "";
+
+    document.querySelector("#ExPlayerPage")?.remove();
+
     if (config.getItem("ext.playerPage.isEffect") == true) {
         if (config.getItem("ext.playerPage.isEffect") == true && config.getItem("darkPlayer") == false) {
             alert("请在设置中启用播放页深色模式以继续使用「播放页面」插件！");
@@ -344,6 +637,17 @@ function loadStyles() {
         deleteButton();
     }
 
+    lyricsMode();
+
+}
+
+function lyricsMode() {
+    document.querySelector("#ExPlayerPageLyricsMode")?.remove();
+    if (config.getItem("ext.playerPage.lyricMode") == true) {
+        includeStyleElement(lyricsModeCSS, "ExPlayerPageLyricsMode");
+    } else {
+        document.querySelector("#ExPlayerPageLyricsMode")?.remove();
+    }
 }
 
 defaultConfig['ext.playerPage.isEffect'] = true;
@@ -353,15 +657,65 @@ SettingsPage.data.push(
     { type: "title", text: "[第三方扩展] 播放页面" },
     { type: "boolean", text: "启用修改的播放页面", description: "开启后将更改播放页面使其更加美观", configItem: "ext.playerPage.isEffect" },
     { type: "boolean", text: "播放页自动隐藏播放控件", description: "开启后在播放页超过3秒无操作则隐藏部分底栏", configItem: "ext.playerPage.autoHideBottom" },
+    { type: "boolean", text: "启用歌词纯享模式", description: "歌词居中关闭封面,顶部上侧显示音乐名称", configItem: "ext.playerPage.lyricMode" },
     { type: "button", text: "逐字歌词功能自动启用", description: "逐字歌词暂不支持自行开启/改变，未来可能添加", configItem: "ext.playerPage.autoHideBottom" },
 );
 
 config.listenChange("ext.playerPage.isEffect", () => loadStyles());
+config.listenChange("ext.playerPage.lyricMode", () => lyricsMode());
 config.listenChange("darkPlayer", () => {
     setTimeout(() => {
         config.setItem("darkPlayer", true);
     }, 1000);
 });
+
+config.listenChange("playerSetting_backgroundMode", () => {
+    setBackground(document.querySelector('.controls #album')?.src);
+});
+
+config.listenChange("playerSetting_blurEffect", () => {
+    applyPlayerSettings();
+});
+
+config.listenChange("playerSetting_darknessEffect", () => {
+    applyPlayerSettings();
+});
+
+function applyPlayerSettings() {
+    let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
+    let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
+    if (config.getItem("playerSetting_backgroundMode") != 0) return;
+    if (blurEffect > 0) {
+        backgroundRule.textContent = `
+                            #playPage::before {
+                                content: '';
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                width: 100%;
+                                height: 100%;
+                                background: url(${document.querySelector('.controls #album')?.src}) center/cover;
+                                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                                z-index: -1;
+                            }
+                        `;
+    } else {
+        backgroundRule.textContent = `
+                            #playPage::before {
+                                content: '';
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                width: 100%;
+                                height: 100%;
+                                background: url(${document.querySelector('.controls #album')?.src}) center/cover;
+                                filter: blur(0px) brightness(${darknessEffect});
+                                z-index: -1;
+                            }
+                        `;
+    }
+}
+
 loadStyles();
 
 // 歌词载入
