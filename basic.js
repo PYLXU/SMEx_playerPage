@@ -254,9 +254,17 @@ let albumObserver = new MutationObserver((mutations) => {
 let fullscreenObserver = new MutationObserver(() => {
     let isFullscreen = document.body.classList.contains("fullscreen");
     let fullToggleBtn = document.querySelector('#ExPlayerFulldBtn');
+    let setBtn = document.querySelector('#ExPlayerSetBtn');
+    let setMenu = document.querySelector('#playerSet');
     if (fullToggleBtn) {
         document.querySelector('#ExPlayerFoldBtn').style.display = isFullscreen ? 'none' : 'block';
         fullToggleBtn.style.left = isFullscreen ? '30px' : '80px';
+    }
+    if (setBtn) {
+        setBtn.style.top = isFullscreen ? '30px' : '44px';
+    }
+    if (setMenu) {
+        setMenu.style.top = isFullscreen ? '22px' : '36px';
     }
 });
 
