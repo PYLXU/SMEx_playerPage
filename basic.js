@@ -44,7 +44,8 @@ body:not(.hideLyrics.hideList) .playerContainer {
 }
 
 .lyrics, .list {
-    height: 95%;
+    height: 82.5vh;
+    margin-top: 6vh;
 }
 
 .infoBar {
