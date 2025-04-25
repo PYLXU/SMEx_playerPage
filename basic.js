@@ -44,7 +44,7 @@ body:not(.hideLyrics.hideList) .playerContainer {
 }
 
 .lyrics, .list {
-    height: 90%;
+    height: 95%;
 }
 
 .infoBar {
@@ -677,9 +677,19 @@ function loadStyles() {
 
 function lyricsMode() {
     document.querySelector("#ExPlayerPageLyricsMode")?.remove();
+    const llmElement = document.querySelector('#ExPlayerLmSongName');
+    if (!llmElement) return;
     if (config.getItem("ext.playerPage.lyricMode") == true) {
+        let musicFullName = document.querySelector('.musicInfo > div')?.innerHTML + " - " + document.querySelector('.musicInfo > b')?.innerHTML;
+        if (llmElement) {
+            llmElement.style.display = 'block';
+            llmElement.innerHTML = musicFullName;
+        }
         includeStyleElement(lyricsModeCSS, "ExPlayerPageLyricsMode");
     } else {
+        if (llmElement) {
+            llmElement.style.display = 'none';
+        }
         document.querySelector("#ExPlayerPageLyricsMode")?.remove();
     }
 }
