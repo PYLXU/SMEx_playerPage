@@ -90,6 +90,11 @@ var style = `
 .controls .musicInfo b {
     font-size: 3.0em;
     white-space: break-spaces;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .controls .musicInfo div {
