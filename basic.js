@@ -302,6 +302,8 @@ function setBackground(albumSrc) {
     if (albumSrc) {
         if (backgroundMode == 0) {
             document.querySelector('#background').style.display = 'none';
+            let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
+            let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
             backgroundRule.textContent = `
                             #playPage::before {
                                 content: '';
@@ -311,7 +313,7 @@ function setBackground(albumSrc) {
                                 width: 100%;
                                 height: 100%;
                                 background: url(${albumSrc}) center/cover;
-                                filter: blur(70px) brightness(0.6);
+                                filter: blur(${blurEffect}px) brightness(${darknessEffect});
                                 z-index: -1;
                             }
                         `;
