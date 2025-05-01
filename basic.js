@@ -310,6 +310,9 @@ var style = `
 .playerContainer {
     z-index: 10;
 }
+.WBWline,.active-dots {
+    justify-content: left !important;
+}
 `;
 
 let backgroundRule = document.createElement('style');

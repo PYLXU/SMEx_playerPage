@@ -1,14 +1,12 @@
 let lastHandle = 0;
 
 
-includeStyleElement(`
-    .WBWline {
-        display: flex;
-        flex-flow: wrap;
-        white-space: pre;
-    }
+// includeStyleElement(`
+//     .WBWline {
 
-    `, "WBWLyricsStyle");
+//     }
+
+//     `, "WBWLyricsStyle");
 
 const observerForElement = new MutationObserver((mutationsList, observer) => {
     mutationsList.forEach((mutation) => {
@@ -236,8 +234,11 @@ function spawnYRCElement(yrc, audioElement, translationData) {
         if (index == 0) lineDiv.classList.add('active');
         lineContainer.setAttribute('data-stamp', line.t);
         lineContainer.setAttribute('data-duration', line.d);
-        lineDiv.style.filter = 'blur(5px)';
         lineDiv.classList.add('WBWline');
+        lineDiv.style.display = 'flex';
+        lineDiv.style.flexFlow = 'wrap';
+        lineDiv.style.whiteSpace = 'pre';
+        lineDiv.style.justifyContent = 'center';
         lineDiv.onclick = () => { audioElement.currentTime = lineContainer.dataset.stamp / 1000; };
 
         // 添加逐字歌词
@@ -245,7 +246,9 @@ function spawnYRCElement(yrc, audioElement, translationData) {
             const wordSpan = document.createElement('span');
             wordSpan.textContent = word.tx;
             wordSpan.style.opacity = '0.6';
-            wordSpan.style.transition = 'opacity 300ms ease-out';
+            wordSpan.style.width = 'auto';
+            wordSpan.style.whiteSpace = 'pre';
+            wordSpan.style.transition = `opacity ${word.d}ms ease-out`;
             wordSpan.setAttribute('data-wordstamp', word.t);
             wordSpan.setAttribute('data-wordduration', word.d);
             lineDiv.appendChild(wordSpan);
@@ -282,6 +285,7 @@ function spawnYRCElement(yrc, audioElement, translationData) {
 
     let activeDots = null;
     let lastActiveLine = null;
+    let lastScroll = 0;
 
     function updateLyrics(timestamp) {
         if (lastHandle == 0) return;
@@ -343,8 +347,13 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         activeDots.style.opacity = '0.6';
                         activeDots.style.marginTop = '10px';
                         // if (scrollTimeout) clearTimeout(scrollTimeout);
-                        // scrollTimeout = setTimeout(() => {
-                        //     activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // scrollTimeout = 
+                        if (lastScroll !== lastActiveLine) {
+                            setTimeout(() => {
+                                activeDots.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                lastScroll = lastActiveLine;
+                            }, 100)
+                        }
                         // }, 500);
                         activeDots.style.display = interval > 10000 ? 'flex' : 'none';
                         if (prevContainer.nextSibling) {
@@ -387,13 +396,17 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                     activeDots = null;
                     // if (scrollTimeout) clearTimeout(scrollTimeout);
                     // scrollTimeout = setTimeout(() => {
-                    //     activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
                     // }, 500);
                 }
             }
         } else if (activeDots) {
             activeDots.remove();
             activeDots = null;
+            scrollTimeout = setTimeout(() => {
+            activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            lastScroll = null;
+            }, 100);
         }
 
         // 更新行状态
@@ -448,9 +461,9 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         word.style.textShadow = 'none';
                     });
                 }
+                ipcRenderer.invoke('lrcUpdate', lineDiv.parentElement.innerHTML)
             } else {
                 lineDiv.classList.remove('active');
-                lineDiv.style.filter = 'blur(5px)';
 
                 const transDiv = container.querySelector('.translation');
                 if (transDiv) {
