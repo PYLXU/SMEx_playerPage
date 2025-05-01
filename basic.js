@@ -16,6 +16,71 @@ if (config.getItem("ext").lyricsMode != null) {
     location.reload();
 }
 
+const playerSettings = [
+    {
+        type: 'title',
+        text: '⌈设置⌋ 页面更改更多设置'
+    },
+    {
+        name: 'playerSetting_backgroundMode',
+        type: 'select',
+        label: '背景类型',
+        options: [
+            [3, '流动光影'],
+            [0, '封面模糊'],
+            [1, '动态混色'],
+            [2, '封面混色']
+        ],
+        default: 0
+    },
+    {
+        name: 'playerSetting_blurEffect',
+        type: 'input',
+        label: '背景模糊程度',
+        inputType: 'number',
+        dependency: 'playerSetting_backgroundMode',
+        dependencyValue: ["0", "3"],
+        default: 70
+    },
+    {
+        name: 'playerSetting_darknessEffect',
+        type: 'input',
+        label: '背景阴暗程度',
+        inputType: 'number',
+        dependency: 'playerSetting_backgroundMode',
+        dependencyValue: ["0", "3"],
+        default: 0.6
+    },
+    {
+        name: 'ext.playerPage.lyricMode',
+        type: 'switch',
+        label: '歌词纯享模式',
+        default: false
+    },
+    {
+        name: 'lyricBlur',
+        type: 'switch',
+        label: '歌词层级虚化',
+        default: true
+    },
+    {
+        name: 'ext.playerPage.autoHideBottom',
+        type: 'switch',
+        label: '自动隐藏底栏',
+        default: false
+    },
+    {
+        name: '3dEffect',
+        type: 'switch',
+        label: '页面立体特效',
+        default: false
+    }
+];
+
+playerSettings.forEach(setting => {
+    defaultConfig[setting.name] = setting.default;
+});
+
 var lyricsModeCSS = `
 .controls {
     position: absolute;
@@ -241,6 +306,10 @@ var style = `
     padding: 5px;
     border-radius: 5px;
 }
+
+.playerContainer {
+    z-index: 10;
+}
 `;
 
 let backgroundRule = document.createElement('style');
@@ -300,7 +369,7 @@ let lMNObserver = new MutationObserver(() => {
 function setBackground(albumSrc) {
     let backgroundMode = config.getItem("playerSetting_backgroundMode");
     if (albumSrc) {
-        if (backgroundMode == 0) {
+        if (backgroundMode == 0 || backgroundMode == null) {
             document.querySelector('#background').style.display = 'none';
             let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
             let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
@@ -317,15 +386,146 @@ function setBackground(albumSrc) {
                                 z-index: -1;
                             }
                         `;
+            document.querySelector('#EX_background_fluentShine')?.remove();
         } else if (backgroundMode == 1) {
             config.setItem("backgroundBlur", true);
             document.querySelector('#background').style.display = 'block';
             backgroundRule.textContent = ``;
-        } else {
+            document.querySelector('#EX_background_fluentShine')?.remove();
+        } else if (backgroundMode == 2) {
             config.setItem("backgroundBlur", false);
             document.querySelector('#background').style.display = 'block';
             backgroundRule.textContent = ``;
+            document.querySelector('#EX_background_fluentShine')?.remove();
+        } else if (backgroundMode == 3) {
+            document.querySelector('#background').style.display = 'none';
+            if (document.querySelector('#EX_background_fluentShine')) {
+                let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
+                let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
+                backgroundRule.textContent = `
+            #EX_background_fluentShine:before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${albumSrc}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
 
+            .fluentShine::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${albumSrc}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
+            @keyframes rotate-clockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            @keyframes rotate-counterclockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(-360deg);
+                }
+            }
+        `;
+            } else {
+                let fluentShineContainer = document.createElement('div');
+                fluentShineContainer.id = 'EX_background_fluentShine';
+                fluentShineContainer.style.display = 'block';
+                fluentShineContainer.style.flexWrap = 'wrap';
+                fluentShineContainer.style.background = 'url(' + albumSrc + ') center/cover';
+
+                for (let i = 1; i <= 4; i++) {
+                    let img = document.createElement('div');
+                    img.id = `EX_background_fluentShine${i}`;
+                    img.classList.add('fluentShine');
+                    img.style.position = 'absolute';
+                    img.style.width = '50%';
+                    img.style.height = '50%';
+
+                    if (i === 1) {
+                        img.style.top = '0';
+                        img.style.left = '0';
+                    } else if (i === 2) {
+                        img.style.top = '0';
+                        img.style.right = '0';
+                    } else if (i === 3) {
+                        img.style.bottom = '0';
+                        img.style.left = '0';
+                    } else if (i === 4) {
+                        img.style.bottom = '0';
+                        img.style.right = '0';
+                    }
+
+                    let rotationDirection = i % 2 === 0 ? 'clockwise' : 'counterclockwise';
+                    let rotationSpeed = [15, 12, 18, 14][i - 1] || 14;
+                    img.style.animation = `rotate-${rotationDirection} ${rotationSpeed}s linear infinite`;
+
+                    fluentShineContainer.appendChild(img);
+                }
+
+                document.querySelector('#playPage')?.appendChild(fluentShineContainer);
+
+                let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
+                let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
+                backgroundRule.textContent = `
+            #EX_background_fluentShine:before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${albumSrc}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
+
+            .fluentShine::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${albumSrc}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
+                
+            @keyframes rotate-clockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            @keyframes rotate-counterclockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(-360deg);
+                }
+            }
+        `;
+            }
         }
     }
 }
@@ -436,66 +636,6 @@ function addButton() {
     setBtn.title = '播放器设置';
     document.querySelector('#playPage')?.insertAdjacentElement('afterbegin', setBtn);
 
-    const playerSettings = [
-        {
-            type: 'title',
-            text: '⌈设置⌋ 页面更改更多设置'
-        },
-        {
-            name: 'playerSetting_backgroundMode',
-            type: 'select',
-            label: '背景类型',
-            options: [
-                [0, '封面模糊'],
-                [1, '动态混色'],
-                [2, '封面混色']
-            ],
-            default: 0
-        },
-        {
-            name: 'playerSetting_blurEffect',
-            type: 'input',
-            label: '背景模糊程度',
-            inputType: 'number',
-            dependency: 'playerSetting_backgroundMode',
-            dependencyValue: 0,
-            default: 70
-        },
-        {
-            name: 'playerSetting_darknessEffect',
-            type: 'input',
-            label: '背景阴暗程度',
-            inputType: 'number',
-            dependency: 'playerSetting_backgroundMode',
-            dependencyValue: 0,
-            default: 0.6
-        },
-        {
-            name: 'ext.playerPage.lyricMode',
-            type: 'switch',
-            label: '歌词纯享模式',
-            default: false
-        }, ,
-        {
-            name: 'lyricBlur',
-            type: 'switch',
-            label: '歌词层级虚化',
-            default: true
-        },
-        {
-            name: 'ext.playerPage.autoHideBottom',
-            type: 'switch',
-            label: '自动隐藏底栏',
-            default: false
-        },
-        {
-            name: '3dEffect',
-            type: 'switch',
-            label: '页面立体特效',
-            default: false
-        }
-    ];
-
     let dependency = playerSettings.filter(setting => setting.dependency);
 
     let playerSet = document.createElement('div');
@@ -519,29 +659,29 @@ function addButton() {
     setContaienrr = document.createElement('div');
 
     function checkDependency() {
-        // 还没做完，下次一定
-        // dependency.forEach(dependencySetting => {
-        //     const dependencyValue = (config.getItem(dependencySetting.dependency));
-        //     const dependencyDiv = document.querySelector(`div[data-setting-name="${dependencySetting.name}"]`);
-        //     if (dependencyDiv) {
-        //         if (dependencyValue != dependencySetting.dependencyValue) {
-        //             dependencyDiv.style.display = 'none';
-        //         } else {
-        //             dependencyDiv.style.display = 'block';
-        //         }
-        //     }
-        // });
+        dependency.forEach(dependencySetting => {
+            const dependencyValue = (config.getItem(dependencySetting.dependency));
+            const dependencyDiv = document.querySelector(`div[data-setting-name="${dependencySetting.name}"]`);
+            if (dependencyDiv) {
+                if (!dependencySetting.dependencyValue.includes(dependencyValue)) {
+                    dependencyDiv.style.display = 'none';
+                } else {
+                    dependencyDiv.style.display = 'block';
+                }
+            }
+        });
     }
 
     playerSettings.forEach(setting => {
         const storedValue = config.getItem(`${setting.name}`) ?? setting.default;
         const div = document.createElement('div');
+        div.setAttribute('data-setting-name', setting.name);
         div.classList.add('block');
 
         if (setting.dependency) {
             // console.log(setting.name, setting.dependency, setting.dependencyValue);
             const dependencyValue = (config.getItem(setting.dependency));
-            if (dependencyValue != setting.dependencyValue) {
+            if (!setting.dependencyValue.includes(dependencyValue)) {
                 div.style.display = 'none';
             }
         }
@@ -744,8 +884,9 @@ config.listenChange("playerSetting_darknessEffect", () => {
 function applyPlayerSettings() {
     let blurEffect = config.getItem("playerSetting_blurEffect") ?? 70;
     let darknessEffect = config.getItem("playerSetting_darknessEffect") ?? 0.6;
-    if (config.getItem("playerSetting_backgroundMode") != 0) return;
-    if (blurEffect > 0) {
+    let backgroundMode = config.getItem("playerSetting_backgroundMode") ?? 0;
+    if (config.getItem("playerSetting_backgroundMode") != (0 || 3)) return;
+    if (backgroundMode == 0) {
         backgroundRule.textContent = `
                             #playPage::before {
                                 content: '';
@@ -759,20 +900,49 @@ function applyPlayerSettings() {
                                 z-index: -1;
                             }
                         `;
-    } else {
+    } else if (backgroundMode == 3) {
         backgroundRule.textContent = `
-                            #playPage::before {
-                                content: '';
-                                position: absolute;
-                                top: 0;
-                                left: 0;
-                                width: 100%;
-                                height: 100%;
-                                background: url(${document.querySelector('.controls #album')?.src}) center/cover;
-                                filter: blur(0px) brightness(${darknessEffect});
-                                z-index: -1;
-                            }
-                        `;
+            #EX_background_fluentShine:before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${document.querySelector('.controls #album')?.src}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
+
+            .fluentShine::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url(${document.querySelector('.controls #album')?.src}) center/cover;
+                filter: blur(${blurEffect}px) brightness(${darknessEffect});
+                z-index: -1;
+            }
+                
+            @keyframes rotate-clockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            @keyframes rotate-counterclockwise {
+                from {
+                    transform: rotate(0deg);
+                }
+                to {
+                    transform: rotate(-360deg);
+                }
+            }
+        `;
     }
 }
 

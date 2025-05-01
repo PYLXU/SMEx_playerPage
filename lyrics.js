@@ -7,6 +7,7 @@ includeStyleElement(`
         flex-flow: wrap;
         white-space: pre;
     }
+
     `, "WBWLyricsStyle");
 
 const observerForElement = new MutationObserver((mutationsList, observer) => {
@@ -358,19 +359,27 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                     dots.forEach((dot, index) => {
                         const dotStartTime = segmentDuration * index;
                         const dotEndTime = segmentDuration * (index + 1);
+                        let newOpacity;
                         if (timeInInterval >= dotStartTime && timeInInterval < dotEndTime) {
                             const progress = (timeInInterval - dotStartTime) / segmentDuration;
-                            dot.style.opacity = 0.6 + (0.4 * progress);
+                            newOpacity = 0.6 + (0.4 * progress);
                             for (let i = 0; i < index; i++) {
-                                dots[i].style.opacity = '1';
+                                if (dots[i].style.opacity !== '1') {
+                                    dots[i].style.opacity = '1';
+                                }
                             }
                             for (let i = index + 1; i < dots.length; i++) {
-                                dots[i].style.opacity = '0.6';
+                                if (dots[i].style.opacity !== '0.6') {
+                                    dots[i].style.opacity = '0.6';
+                                }
                             }
                         } else if (timeInInterval >= dotEndTime) {
-                            dot.style.opacity = '1';
+                            newOpacity = '1';
                         } else {
-                            dot.style.opacity = '0.6';
+                            newOpacity = '0.6';
+                        }
+                        if (dot.style.opacity !== newOpacity.toString()) {
+                            dot.style.opacity = newOpacity;
                         }
                     });
                 } else if (activeDots) {
