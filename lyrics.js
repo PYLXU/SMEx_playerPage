@@ -566,7 +566,7 @@ async function startReplaceElement() {
     } else if (musicId.startsWith('kuwo:')) {
         const musicId2 = musicId.replace('kuwo:', '');
         const lyricx = await KW_fetchLyrics(musicId2, true);
-        if (lyricx == null) {
+        if (lyricx == null || (!lyricx.includes('<') && !lyricx.includes('>'))) {
             console.error('该歌曲暂无逐字歌词');
             return;
         }
