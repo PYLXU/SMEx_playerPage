@@ -306,13 +306,6 @@ var style = `
     padding: 5px;
     border-radius: 5px;
 }
-
-.playerContainer {
-    z-index: 10;
-}
-.WBWline,.active-dots {
-    justify-content: left !important;
-}
 `;
 
 let backgroundRule = document.createElement('style');
@@ -788,6 +781,13 @@ function deleteButton() {
     document.querySelector('#ExPlayerLmSongName')?.remove();
 }
 
+let albumElement = document.querySelector('.controls #album');
+if (albumElement) {
+    albumObserver.observe(albumElement, { attributes: true });
+}
+let albumSrc = document.querySelector('.controls #album')?.src;
+setBackground(albumSrc);
+
 function loadStyles() {
     config.setItem("darkPlayer", true);
     let styles = "";
@@ -800,12 +800,6 @@ function loadStyles() {
             config.setItem("ext.playerPage.isEffect", false);
         }
         styles = style;
-        let albumElement = document.querySelector('.controls #album');
-        if (albumElement) {
-            albumObserver.observe(albumElement, { attributes: true });
-        }
-        let albumSrc = document.querySelector('.controls #album')?.src;
-        setBackground(albumSrc);
         fullscreenObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
         let progressCurrentElement = document.querySelector('#progressCurrent');
         let progressDurationElement = document.querySelector('#progressDuration');
@@ -822,7 +816,6 @@ function loadStyles() {
         addButton();
         includeStyleElement(styles, "ExPlayerPage");
     } else {
-        albumObserver.disconnect();
         fullscreenObserver.disconnect();
         progressObserver.disconnect();
         lMNObserver.disconnect();
@@ -855,13 +848,28 @@ function lyricsMode() {
 
 defaultConfig['ext.playerPage.isEffect'] = true;
 defaultConfig['ext.playerPage.autoHideBottom'] = true;
+defaultConfig['ext.playerPage.lyricMode'] = false;
+defaultConfig['ext.playerPage.autoHideBottom'] = true;
+defaultConfig['playerSetting_backgroundMode'] = "0";
 
 SettingsPage.data.push(
     { type: "title", text: "[第三方扩展] 播放页面" },
     { type: "boolean", text: "启用修改的播放页面", description: "开启后将更改播放页面使其更加美观", configItem: "ext.playerPage.isEffect" },
     { type: "boolean", text: "播放页自动隐藏播放控件", description: "开启后在播放页超过3秒无操作则隐藏部分底栏", configItem: "ext.playerPage.autoHideBottom" },
     { type: "boolean", text: "启用歌词纯享模式", description: "歌词居中关闭封面,顶部上侧显示音乐名称", configItem: "ext.playerPage.lyricMode" },
-    { type: "button", text: "逐字歌词功能自动启用", description: "逐字歌词暂不支持自行开启/改变，未来可能添加", configItem: "ext.playerPage.autoHideBottom" },
+    {
+        type: "select",
+        text: "播放页面背景类型",
+        description: "选择背景类型,该功能会强制覆盖原设置(及时您关闭了修改后播放页面)",
+        options: [
+            ["3", "流动光影"],
+            ["0", "封面模糊 (默认)"],
+            ["1", "动态混色"],
+            ["2", "封面混色"],
+        ],
+        configItem: "playerSetting_backgroundMode",
+    },
+    { type: "button", text: "逐字歌词功能自动启用", description: "逐字歌词暂不支持自行开启/改变", configItem: "ext.playerPage.autoHideBottom" },
 );
 
 config.listenChange("ext.playerPage.isEffect", () => loadStyles());
@@ -985,7 +993,7 @@ function onActivity() {
 }
 function resetTimer() {
     clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(onInactivity, INACTIVITY_THRESHOLD);
+    if (config.getItem('ext.playerPage.isEffect') == true) inactivityTimer = setTimeout(onInactivity, INACTIVITY_THRESHOLD);
 }
 function setupActivityListeners() {
     document.addEventListener('mousemove', handleUserActivity);
@@ -995,16 +1003,16 @@ function setupActivityListeners() {
     document.addEventListener('wheel', handleUserActivity); // 滚轮事件
 }
 function handleUserActivity() {
-    if (config.getItem('ext.playerPage.autoHideBottom') == false) {
+    if (config.getItem('ext.playerPage.autoHideBottom') == false && config.getItem('ext.playerPage.isEffect') == true) {
         onActivity();
         return;
     }
-    if (!document.body.classList.contains('playerShown')) {
+    if (!document.body.classList.contains('playerShown') && config.getItem('ext.playerPage.isEffect') == true) {
         document.hasInactivity = true;
         onActivity();
         return;
     }
-    if (document.hasInactivity) {
+    if (document.hasInactivity && config.getItem('ext.playerPage.isEffect') == true) {
         onActivity();
         document.hasInactivity = false;
     }

@@ -1,12 +1,14 @@
 let lastHandle = 0;
 
 
-// includeStyleElement(`
-//     .WBWline {
-
-//     }
-
-//     `, "WBWLyricsStyle");
+includeStyleElement(`
+    .WBWline,.active-dots {
+        justify-content: left !important;
+    }
+    .playerContainer {
+        z-index: 10;
+    }
+    `, "WBWLyricsStyle");
 
 const observerForElement = new MutationObserver((mutationsList, observer) => {
     mutationsList.forEach((mutation) => {
@@ -200,7 +202,34 @@ const findClosestTranslation = (translations, targetTime, maxTimeDiff = 1500) =>
 
 let scrollTimeout = null;
 
-function spawnYRCElement(yrc, audioElement, translationData) {
+function handleTranslationMode1(fullYrcArr) {
+    if (!Array.isArray(fullYrcArr)) {
+        console.error('Invalid input: fullYrcArr must be an array');
+        return { original: [], translation: [] };
+    }
+
+    const result = {
+        original: [],
+        translation: {}
+    };
+
+    for (let i = 0; i < fullYrcArr.length; i++) {
+        const currentLine = fullYrcArr[i];
+        if (currentLine.d === 0 && i > 0 && fullYrcArr[i - 1].d !== 0) {
+            const original = fullYrcArr[i - 1];
+            result.original.push(original);
+            result.translation[fullYrcArr[i - 1].t] = currentLine.c.map((word) => word.tx).join('');
+        }
+    }
+
+    if (result.original.length === 0) {
+        return { original: fullYrcArr, translation: [] };
+    }
+
+    return result;
+}
+
+function spawnYRCElement(yrc, audioElement, translationData, translationMode = 0) {
     document.querySelectorAll('.active-dots').forEach((element) => {
         element.remove();
     });
@@ -213,7 +242,21 @@ function spawnYRCElement(yrc, audioElement, translationData) {
 
     lyricsElement.innerHTML = '';
 
-    const translations = parseLRC(translationData);
+    let translations = {};
+    if (translationMode === 0) {
+        translations = parseLRC(translationData);
+    } else if (translationMode === 1) {
+        try {
+            translations = handleTranslationMode1(translationData);
+        } catch (error) {
+            console.error('Error processing translation data:', error.message);
+            translations = { original: yrc, translation: {} };
+        }
+        yrc = translations.original || yrc;
+        translations = translations.translation || {};
+    }
+
+    console.log('Original lyrics:', yrc);
 
     console.log('Translation data:', translations);
 
@@ -404,8 +447,8 @@ function spawnYRCElement(yrc, audioElement, translationData) {
             activeDots.remove();
             activeDots = null;
             scrollTimeout = setTimeout(() => {
-            activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            lastScroll = null;
+                activeContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                lastScroll = null;
             }, 100);
         }
 
@@ -446,6 +489,7 @@ function spawnYRCElement(yrc, audioElement, translationData) {
                         }
                         anyWordActive = true;
                     } else if (timestamp >= wordEnd) {
+                        if (wordIndex === 0 && parseInt(word.getAttribute('data-wordduration')) !== 0) anyWordActive = true;
                         word.style.opacity = '1';
                         word.style.textShadow = 'none';
                     } else {
@@ -495,16 +539,16 @@ async function startReplaceElement() {
     if (lastHandle == musicId) return;
     lastHandle = musicId;
     console.log('开始加载歌曲', musicId);
-    if (config.getItem('ext')['ncm'] == null) {
-        console.error('未安装网易云扩展但正在尝试播放网易云音乐');
-        return;
-    }
-    const apiUrl = config.getItem('ext.ncm.apiEndpoint');
-    if (apiUrl == null) {
-        console.error('网易云扩展API地址未设置，无法获取歌词');
-        return;
-    }
     if (musicId.startsWith('ncm:')) {
+        if (config.getItem('ext')['ncm'] == null) {
+            console.error('未安装网易云扩展但正在尝试播放网易云音乐');
+            return;
+        }
+        const apiUrl = config.getItem('ext.ncm.apiEndpoint');
+        if (apiUrl == null) {
+            console.error('网易云扩展API地址未设置，无法获取歌词');
+            return;
+        }
         postApiArray(apiUrl + '/lyric/new?id=' + musicId.replace('ncm:', ''), (lyrics) => {
             if (lyrics == null) {
                 console.error('歌词数据为空');
@@ -519,6 +563,17 @@ async function startReplaceElement() {
             console.log(yrc);
             spawnYRCElement(yrc, document.querySelector('#audio'), lyrics.tlyric ? lyrics.tlyric.lyric : '');
         });
+    } else if (musicId.startsWith('kuwo:')) {
+        const musicId2 = musicId.replace('kuwo:', '');
+        const lyricx = await KW_fetchLyrics(musicId2, true);
+        if (lyricx == null) {
+            console.error('该歌曲暂无逐字歌词');
+            return;
+        }
+        lyricsElement.innerHTML = '<div data-stamp="0" style="filter: none;" class="active"><span>正在加载逐字歌词</span></div>';
+        const yrc = lrcxToYrcArr(lyricx);
+        console.log(yrc);
+        spawnYRCElement(yrc, document.querySelector('#audio'), yrc, 1);
     }
 }
 
@@ -540,4 +595,161 @@ if (EXprogressCurrentElement2) {
 }
 if (EXprogressDurationElement2) {
     EXprogressObserver2.observe(EXprogressDurationElement2, { childList: true, subtree: true });
+}
+
+
+// 酷我音乐歌词获取
+const http = require('http');
+const https = require('https');
+const { inflate } = require('zlib');
+const iconv = require('iconv-lite');
+
+const bufKey = Buffer.from('yeelion');
+const bufKeyLen = bufKey.length;
+
+// 构建请求参
+const KW_buildParams = (id, isGetLyricx) => {
+    let params = `user=12345,web,web,web&requester=localhost&req=1&rid=MUSIC_${id}`;
+    if (isGetLyricx) params += '&lrcx=1';
+    const bufStr = Buffer.from(params);
+    const bufStrLen = bufStr.length;
+    const output = new Uint16Array(bufStrLen);
+    let i = 0;
+    while (i < bufStrLen) {
+        let j = 0;
+        while (j < bufKeyLen && i < bufStrLen) {
+            output[i] = bufKey[j] ^ bufStr[i];
+            i++;
+            j++;
+        }
+    }
+    return Buffer.from(output).toString('base64');
+};
+
+// 解压数据
+const KW_handleInflate = (data) =>
+    new Promise((resolve, reject) => {
+        inflate(data, (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+
+// 解码歌词
+const KW_decodeLyrics = async (buf, isGetLyricx) => {
+    if (buf.toString('utf8', 0, 10) !== 'tp=content') return '';
+    const lrcData = await KW_handleInflate(buf.slice(buf.indexOf('\r\n\r\n') + 4));
+    if (!isGetLyricx) return iconv.decode(lrcData, 'gb18030');
+    const bufStr = Buffer.from(lrcData.toString(), 'base64');
+    const bufStrLen = bufStr.length;
+    const output = new Uint16Array(bufStrLen);
+    let i = 0;
+    while (i < bufStrLen) {
+        let j = 0;
+        while (j < bufKeyLen && i < bufStrLen) {
+            output[i] = bufStr[i] ^ bufKey[j];
+            i++;
+            j++;
+        }
+    }
+    return iconv.decode(Buffer.from(output), 'gb18030');
+};
+
+// 自定义 HTTP/HTTPS 请求函数
+const customRequest = (url, options = {}) => {
+    return new Promise((resolve, reject) => {
+        const lib = url.startsWith('https') ? https : http;
+        const req = lib.get(url, options, (res) => {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+                return reject(new Error(`HTTP status code ${res.statusCode}`));
+            }
+
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => {
+                const rawData = Buffer.concat(chunks);
+                resolve({
+                    statusCode: res.statusCode,
+                    raw: rawData
+                });
+            });
+        });
+
+        req.on('error', (err) => reject(err));
+        req.setTimeout(options.timeout || 15000, () => {
+            req.destroy(new Error('Request timeout'));
+        });
+    });
+};
+
+// 获取歌词函数
+const KW_fetchLyrics = async (musicId, isGetLyricx = true) => {
+    const url = `http://newlyric.kuwo.cn/newlyric.lrc?${KW_buildParams(musicId, isGetLyricx)}`;
+    try {
+        const resp = await customRequest(url, { timeout: 15000 });
+        const decodedLyrics = await KW_decodeLyrics(Buffer.from(resp.raw), isGetLyricx);
+        return decodedLyrics;
+    } catch (err) {
+        throw new Error('Failed to fetch lyrics: ' + err.message);
+    }
+};
+
+function lrcxToYrcArr(krc) {
+    const lines = krc.split('\n').filter(line => line.trim() !== '');
+    const yrc = [];
+
+    let kuwoValue = 0;
+
+    for (const line of lines) {
+        const match = line.match(/^\[(\d+):(\d+)\.(\d+)\](.*)/);
+        if (!match) {
+            if (!line.startsWith('[kuwo:')) {
+                continue;
+            }
+            const matchKuwo = line.match(/^\[kuwo:(\d+)\]/);
+            if (matchKuwo) {
+                kuwoValue = parseInt(matchKuwo[1], 8); // Parse as octal
+            }
+            continue;
+        }
+
+        const minutes = parseInt(match[1], 10);
+        const seconds = parseInt(match[2], 10);
+        const milliseconds = parseInt(match[3].padEnd(3, '0'), 10);
+        const timestamp = minutes * 60000 + seconds * 1000 + milliseconds;
+
+        const content = match[4];
+        const wordRegex = /<(\d+),(-?\d+)>([^<]*)/g;
+        const words = [];
+        let wordMatch;
+
+        const k1 = parseInt(kuwoValue / 10);
+        const k2 = parseInt(kuwoValue % 10);
+
+        while ((wordMatch = wordRegex.exec(content)) !== null) {
+            const [_, v1, v2, text] = wordMatch;
+            const start = (parseInt(v1, 10) + parseInt(v2, 10)) / (k1 * 2);
+            const duration = (parseInt(v1, 10) - parseInt(v2, 10)) / (k2 * 2);
+
+            words.push({
+                t: timestamp + start,
+                d: duration,
+                tx: text
+            });
+        }
+
+        let lineDuration = 0;
+        if (words.length > 0) {
+            const lastWord = words[words.length - 1];
+            lineDuration = lastWord.t + lastWord.d - timestamp;
+        }
+
+        yrc.push({
+            t: timestamp,
+            d: lineDuration,
+            c: words
+        });
+    }
+
+    return yrc;
 }

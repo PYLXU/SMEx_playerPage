@@ -2,7 +2,7 @@
   "packageId": "playerPage",
   "extName": "播放页面",
   "uiName": "播放页面",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "entries": [
     "function.js",
     "basic.js",
