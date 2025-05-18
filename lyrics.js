@@ -17,13 +17,15 @@ const observerForElement = new MutationObserver((mutationsList, observer) => {
             if (targetElement) {
                 observer.disconnect();
                 let debounceTimeout;
-                startReplaceElement();
+                const musicId = config.getItem('currentMusic');
+                startReplaceElement(musicId);
                 const lyricsObserver = new MutationObserver((lyricsMutations) => {
                     if (debounceTimeout) clearTimeout(debounceTimeout);
+                    const musicId2 = config.getItem('currentMusic');
                     debounceTimeout = setTimeout(() => {
                         lyricsMutations.forEach((lyricsMutation) => {
                             if (lyricsMutation.type === 'childList') {
-                                startReplaceElement();
+                                startReplaceElement(musicId2);
                                 console.log('歌词元素发生变化，重新加载逐字歌词');
                             }
                         });
@@ -533,8 +535,7 @@ function spawnYRCElement(yrc, audioElement, translationData, translationMode = 0
     }
 }
 
-async function startReplaceElement() {
-    const musicId = config.getItem('currentMusic');
+async function startReplaceElement(musicId) {
     const lyricsElement = document.querySelector('.SimLRC');
     if (lastHandle == musicId) return;
     lastHandle = musicId;
